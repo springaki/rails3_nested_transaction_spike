@@ -36,7 +36,41 @@ describe Question, :type => :model do
       expect(Question.count).to eq 2
     end
 
-    example "requires_new を付けると想定通り内側だけロールバックされる" do
+    example "すべてロールバックされる" do
+      passed_rescue = false
+      begin
+        ActiveRecord::Base.transaction do
+          Question.create
+          ActiveRecord::Base.transaction do
+            Question.create
+            raise
+          end
+        end
+      rescue
+        passed_rescue = true
+      end
+      expect(passed_rescue).to be_truthy
+      expect(Question.count).to eq 0
+    end
+
+    example "requires_new を付けて raise すると savepoint 無視してすべてロールバックされる" do
+      passed_rescue = false
+      begin
+        ActiveRecord::Base.transaction do
+          Question.create
+          ActiveRecord::Base.transaction(requires_new: true) do
+            Question.create
+            raise
+          end
+        end
+      rescue
+        passed_rescue = true
+      end
+      expect(passed_rescue).to be_truthy
+      expect(Question.count).to eq 0
+    end
+
+    example "requires_new を付けて raise ActiveRecord::Rollback すると想定通り内側だけロールバックされる" do
       begin
         ActiveRecord::Base.transaction do
           Question.create
